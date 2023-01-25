@@ -1,11 +1,63 @@
 import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from '@next/font/google'
+import bot from 'assets/bot.svg'
+import user from 'assets/user_2.png'
+import btnSend from 'assets/btnSend.svg'
+import { v4 as uuid } from 'uuid';
 import styles from '@/styles/Home.module.css'
+import Image from 'next/image'
+import { useState } from 'react';
 
-const inter = Inter({ subsets: ['latin'] })
+const prependString = 'Rewrite this message by breaking down the ideas into separate sentences in bullet point format: ';
+interface ChatStripe {
+  isAi: boolean
+  value: string
+  uniqueId?: string
+}
 
 export default function Home() {
+  const [prompt, setPrompt]  = useState<string>(prependString)
+  const [conversation, setConversation] = useState<ChatStripe[]>([])
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault()
+    const userPrompt: ChatStripe = {
+      isAi: false,
+      value: prompt,
+      uniqueId: uuid()
+    }
+
+    try {
+      const res = await fetch('/api/handlerChatGPT', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt
+        })
+      });
+      
+      if( res.ok ) {
+        const data = await res.json()
+        const parsedData = data.bot.trim();
+        const botResponse: ChatStripe = {
+          isAi: true,
+          value: parsedData,
+          uniqueId: uuid()
+        }
+        setPrompt("")
+        setConversation(conversation.concat(userPrompt, botResponse))
+        console.log(conversation)
+      }
+      else {
+        const error = await res.text()
+        console.log(error) 
+      }
+    } catch( error ) {
+      console.log(error) 
+    }
+  }
+
   return (
     <>
       <Head>
@@ -15,107 +67,39 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className={styles.main}>
-        <div className={styles.description}>
-          <p>
-            Get started by editing&nbsp;
-            <code className={styles.code}>pages/index.tsx</code>
-          </p>
-          <div>
-            <a
-              href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              By{' '}
-              <Image
-                src="/vercel.svg"
-                alt="Vercel Logo"
-                className={styles.vercelLogo}
-                width={100}
-                height={24}
-                priority
-              />
-            </a>
+        <div className='container'>
+        <div>
+          { conversation.map( (data: ChatStripe, key) => (
+            <div className={`wrapper ${data.isAi && 'ai'}`} key={key}>
+              <div className="chat">
+                  <div className="profile">
+                      <Image 
+                          src={data.isAi ? bot : user} 
+                          alt={data.isAi ? 'bot' : 'user'}
+                          width={50}
+                          height={50}
+                      />
+                  </div>
+                  <div className="message" id={data.uniqueId}>{data.value}</div>
+              </div>
           </div>
+        ))}
         </div>
-
-        <div className={styles.center}>
-          <Image
-            className={styles.logo}
-            src="/next.svg"
-            alt="Next.js Logo"
-            width={180}
-            height={37}
-            priority
-          />
-          <div className={styles.thirteen}>
-            <Image
-              src="/thirteen.svg"
-              alt="13"
-              width={40}
-              height={31}
-              priority
-            />
-          </div>
-        </div>
-
-        <div className={styles.grid}>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Docs <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Find in-depth information about Next.js features and&nbsp;API.
-            </p>
-          </a>
-
-          <a
-            href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Learn <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Learn about Next.js in an interactive course with&nbsp;quizzes!
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Templates <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Discover and deploy boilerplate example Next.js&nbsp;projects.
-            </p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <h2 className={inter.className}>
-              Deploy <span>-&gt;</span>
-            </h2>
-            <p className={inter.className}>
-              Instantly deploy your Next.js site to a shareable URL
-              with&nbsp;Vercel.
-            </p>
-          </a>
+          <form onSubmit={handleSubmit}>
+            <textarea 
+              name="prompt" 
+              value={prompt}
+              cols={3}
+              rows={3}
+              onChange={(e) => {
+              setPrompt(e.target.value)
+            }}
+              style={{minHeight: 150, minWidth: 450}}
+            ></textarea>  
+              <button type="submit">
+                <Image src={btnSend} alt="send" />
+              </button>
+          </form>
         </div>
       </main>
     </>
